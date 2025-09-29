@@ -24,8 +24,10 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -68,7 +70,8 @@ type ServerInfo struct {
 
 func main() {
 	apikey := flag.String("apikey", "", "steam web api key")
-	addr := flag.String("addr", "0.0.0.0:8080", "ip address and port for web server")
+	proto := flag.String("proto", "tcp", "proto for web server")
+	addr := flag.String("addr", "127.0.0.1:80", "address for web server")
 	flag.Parse()
 
 	if *apikey == "" {
@@ -79,10 +82,28 @@ func main() {
 
 	http.HandleFunc("/", handle)
 
-	err := http.ListenAndServe(*addr, nil)
-	if err != nil {
-		log.Fatalf("http error: %s", err)
+	if *proto == "unix" {
+		err := os.Remove(*addr)
+		if err != nil && !os.IsNotExist(err) {
+			log.Fatalf("failed to delete unix socket: %s", err)
+		}
 	}
+
+	l, err := net.Listen(*proto, *addr)
+	if err != nil {
+		log.Fatalf("failed to create web server listener: %s", err)
+	}
+
+	defer l.Close()
+
+	if *proto == "unix" {
+		err = os.Chmod(*addr, 0777)
+		if err != nil {
+			log.Fatalf("failed to set unix socket permissions: %s", err)
+		}
+	}
+
+	http.Serve(l, nil)
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
