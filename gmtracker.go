@@ -19,10 +19,12 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -34,7 +36,12 @@ import (
 var (
 	cache Cache
 	key   string
-	tmpl  = template.Must(template.New("list.html").Funcs(template.FuncMap{"region": region, "platform": platform}).ParseFiles("templates/list.html"))
+
+	//go:embed templates
+	templates      embed.FS
+	TemplatesFS, _ = fs.Sub(templates, "templates")
+
+	tmpl = template.Must(template.New("list.html").Funcs(template.FuncMap{"region": region, "platform": platform}).ParseFS(TemplatesFS, "list.html"))
 )
 
 type Cache struct {
